@@ -1,6 +1,6 @@
-import { Observable } from 'rxjs';
+import { Observable, Subscriber } from 'rxjs';
 
-import { IpcListener, ObservableFactoryFunction, Receiver } from './index';
+import { ObservableFactoryFunction, Receiver } from './index';
 
 export class RxIpc {
   static listenerCount: number = 0;
@@ -22,7 +22,7 @@ export class RxIpc {
   checkRemoteListener(channel: string, receiver: Receiver) {
     const target = receiver == null ? this.ipc : receiver;
     return new Promise((resolve, reject) => {
-      this.ipc.once('rx-ipc-check-reply:' + channel, (event, result) => {
+      this.ipc.once('rx-ipc-check-reply:' + channel, (_, result) => {
         if (result) {
           resolve(result);
         } else {
@@ -35,7 +35,7 @@ export class RxIpc {
 
   cleanUp() {
     this.ipc.removeAllListeners('rx-ipc-check-listener');
-    Object.keys(this.listeners).forEach((channel) => {
+    Object.keys(this.listeners).forEach((channel: string) => {
       this.removeListeners(channel);
     });
   }
@@ -47,10 +47,10 @@ export class RxIpc {
       const replyTo = event.sender;
       const observable = observableFactory(...args);
       observable.subscribe(
-        (data) => {
+        (data: any) => {
           replyTo.send(subChannel, 'n', data);
         },
-        (err) => {
+        (err: Error) => {
           replyTo.send(subChannel, 'e', err);
         },
         () => {
@@ -71,11 +71,10 @@ export class RxIpc {
     RxIpc.listenerCount++;
     const target = receiver == null ? this.ipc : receiver;
     target.send(channel, subChannel, ...args);
-    return new Observable((observer) => {
-      this.checkRemoteListener(channel, receiver)
-        .catch(() => {
-          observer.error('Invalid channel: ' + channel);
-        });
+    return new Observable((observer: Subscriber<any>) => {
+      this.checkRemoteListener(channel, receiver).catch(() => {
+        observer.error('Invalid channel: ' + channel);
+      });
       this.ipc.on(subChannel, function listener(event, type, data) {
         switch (type) {
           case 'n':
@@ -98,5 +97,4 @@ export class RxIpc {
   _getListenerCount(channel: string) {
     return this.ipc.listenerCount(channel);
   }
-
 }

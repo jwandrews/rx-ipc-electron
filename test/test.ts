@@ -1,25 +1,23 @@
 import { expect } from 'chai';
 import { ipcRenderer } from 'electron';
-import { slow, suite, test, timeout } from 'mocha-typescript';
-import { Observable } from 'rxjs';
+import { suite, test } from 'mocha-typescript';
+import { concat, from, Observable } from 'rxjs';
 import rxIpc from '../src/renderer';
 
 @suite('Rx-Electron-IPC')
 class Main {
-
   @test 'It should pass an Observable from main to renderer'() {
     const results = [];
-    return new Promise((resolve) => {
-      rxIpc.runCommand('test-main', null, 1, 2, {test: 'passed'})
-      .subscribe(
-        (data) => {
+    return new Promise((resolve, _) => {
+      rxIpc.runCommand('test-main', null, 1, 2, { test: 'passed' }).subscribe(
+        (data: number | { test: 'passed' }) => {
           results.push(data);
         },
-        (err) => {
+        (err: Error) => {
           throw err;
         },
         () => {
-          expect(results).to.deep.equal([1, 2, {test: 'passed'}]);
+          expect(results).to.deep.equal([1, 2, { test: 'passed' }]);
           resolve();
         }
       );
@@ -28,13 +26,12 @@ class Main {
 
   @test 'It should correctly pass an error'() {
     const results = [];
-    return new Promise((resolve) => {
-      rxIpc.runCommand('test-error', null)
-      .subscribe(
-        (data) => {
+    return new Promise((resolve, _) => {
+      rxIpc.runCommand('test-error', null).subscribe(
+        (data: undefined) => {
           results.push(data);
         },
-        (err) => {
+        (err: Error) => {
           expect(results).to.deep.equal([1, 2]);
           expect(err).to.equal('Test Error');
           resolve();
@@ -45,14 +42,15 @@ class Main {
 
   @test 'It should handle two instances of the same command'() {
     const results = [];
-    return new Promise((resolve) => {
-      rxIpc.runCommand('test-main', null, 1, 2, 3)
-      .concat(rxIpc.runCommand('test-main', null, 4, 5, 6))
-      .subscribe(
-        (data) => {
+    return new Promise((resolve, _) => {
+      concat(
+        rxIpc.runCommand('test-main', null, 1, 2, 3),
+        rxIpc.runCommand('test-main', null, 4, 5, 6)
+      ).subscribe(
+        (data: number) => {
           results.push(data);
         },
-        (err) => {
+        (err: Error) => {
           throw err;
         },
         () => {
@@ -64,9 +62,9 @@ class Main {
   }
 
   @test 'The renderer should run a command from the main process'() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, _) => {
       function testCommand(...args) {
-        return Observable.from(args);
+        return from(args);
       }
       ipcRenderer.on('results-from-main', (event, results) => {
         expect(results).to.deep.equal([3, 2, 1]);
@@ -79,12 +77,11 @@ class Main {
 
   @test 'It should throw an error if given an unregistered command'() {
     return new Promise((resolve, reject) => {
-      rxIpc.runCommand('invalid', null)
-      .subscribe(
-        (data) => {
+      rxIpc.runCommand('invalid', null).subscribe(
+        (_: undefined) => {
           reject('We should not receive data here.');
         },
-        (err) => {
+        (err: Error) => {
           expect(err).to.equal('Invalid channel: invalid');
           resolve();
         }

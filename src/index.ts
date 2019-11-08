@@ -2,7 +2,7 @@ import { Observable } from 'rxjs';
 
 export type IpcListener = (event, ...args) => void;
 
-export type ObservableFactoryFunction = (...args: any[]) => Observable<any>;
+export type ObservableFactoryFunction<T extends any = any> = (...args: any[]) => Observable<T>;
 
 export interface Receiver {
   send(channel: string, ...args: any[]): void;
